@@ -1110,5 +1110,264 @@ Universidad Dominicano Americana | Ingeniería en Ciberseguridad
 Estado: Listo para implementar
 
 
+📚 SISTEMA DE AGENTES PARA CREACIÓN DE LIBROS
+Autora: Ana Sabino (2026-0056)
+Base Arquitectónica: Diego Mercedes Llauger (2026-0048)
+Universidad: Dominicano Americana | Ingeniería en Ciberseguridad
+Versión: 1.0
+Estado: ✅ Operacional
+
+🎯 ¿QUÉ ES ESTO?
+Un sistema multiagente que ayuda a escribir libros profesionales de forma eficiente.
+Tienes 7 agentes especializados que trabajan juntos:
+
+Router - Clasifica qué tipo de libro quieres escribir
+Analizador - Descompone tu idea en componentes claros
+Estructurador - Crea la arquitectura del libro (índice, capítulos)
+Generador - Escribe el contenido del libro
+Revisor de Estilo - Mejora la prosa y claridad
+Validador - Encuentra inconsistencias
+Maestro de Narrativa - Enseña técnicas de escritura
+Adaptador - Aprende de tu feedback
+
+
+🚀 INSTALACIÓN RÁPIDA
+Requisitos
+
+Python 3.8+
+pip (gestor de paquetes)
+API key de OpenAI (opcional, para versión con Claude)
+
+Pasos
+bash# 1. Clonar el repositorio
+git clone https://github.com/tu-usuario/book-agents-system.git
+cd book-agents-system
+
+# 2. Crear entorno virtual
+python -m venv venv
+
+# 3. Activar entorno virtual
+# En Windows:
+venv\Scripts\activate
+# En Mac/Linux:
+source venv/bin/activate
+
+# 4. Instalar dependencias
+pip install -r requirements.txt
+
+# 5. Ejecutar el sistema
+python main.py
+
+📖 GUÍA DE USO RÁPIDA
+Crear un nuevo libro
+pythonfrom book_agents import BookAgentSystem
+
+# Inicializar el sistema
+system = BookAgentSystem()
+
+# Describir tu libro
+your_idea = """
+Quiero escribir una novela de misterio sobre una detective 
+que resuelve crímenes en una ciudad distópica.
+"""
+
+# Ejecutar el router (clasificar el libro)
+classification = system.router(your_idea)
+
+# Ver la clasificación
+print(classification)
+# Output: {'tipo': 'FICCIÓN', 'subtipo': 'Novela de misterio', ...}
+
+# Analizar la idea
+analysis = system.analyzer(your_idea, classification)
+
+# Estructurar el libro
+structure = system.structurer(analysis)
+
+# Ver el índice completo
+print(structure['indices'])
+
+# Escribir Capítulo 1
+chapter_1 = system.generator(
+    chapter_number=1,
+    title="El primer crimen",
+    structure=structure
+)
+
+# Mejorar el estilo
+improved = system.style_reviewer(chapter_1)
+
+# Validar coherencia (después de varios capítulos)
+validation = system.validator([chapter_1, chapter_2, ...])
+
+# Aprender técnicas
+lessons = system.narrative_master(analysis, validation)
+
+📁 ESTRUCTURA DEL PROYECTO
+book-agents-system/
+├── README.md                          # Este archivo
+├── requirements.txt                   # Dependencias
+├── main.py                            # Punto de entrada principal
+├── config.py                          # Configuración global
+├── 
+├── agents/                            # Los 7 agentes
+│   ├── __init__.py
+│   ├── router.py                      # Agente 0: Clasificador
+│   ├── analyzer.py                    # Agente 1: Analizador
+│   ├── structurer.py                  # Agente 2: Estructurador
+│   ├── generator.py                   # Agente 3: Generador
+│   ├── style_reviewer.py              # Agente 4: Revisor de Estilo
+│   ├── validator.py                   # Agente 5: Validador
+│   ├── narrative_master.py            # Agente 6: Maestro
+│   └── adapter.py                     # Agente 7: Adaptador
+│
+├── core/                              # Lógica central
+│   ├── __init__.py
+│   ├── book_system.py                 # Sistema principal
+│   ├── models.py                      # Modelos de datos
+│   └── utils.py                       # Utilidades
+│
+├── storage/                           # Persistencia
+│   ├── __init__.py
+│   ├── database.py                    # Base de datos local
+│   └── json_handler.py                # Manejo de JSON
+│
+├── templates/                         # Prompts para IA
+│   ├── __init__.py
+│   ├── router_prompt.py
+│   ├── analyzer_prompt.py
+│   └── ... (otros prompts)
+│
+├── examples/                          # Ejemplos de uso
+│   ├── example_1_basic_usage.py
+│   ├── example_2_full_workflow.py
+│   └── example_3_advanced.py
+│
+└── tests/                             # Tests unitarios
+    ├── __init__.py
+    └── test_agents.py
+
+🎬 EJEMPLOS DE USO
+Ejemplo 1: Flujo Básico Completo
+pythonfrom book_agents import BookAgentSystem
+
+system = BookAgentSystem(author_name="Ana Sabino")
+
+# Paso 1: Describir el libro
+book_idea = input("Describe tu libro: ")
+
+# Paso 2: Clasificar
+classification = system.router(book_idea)
+print(f"Tipo: {classification['tipo']}")
+
+# Paso 3: Analizar
+analysis = system.analyzer(book_idea, classification)
+print(f"Claridad: {analysis['claridad_general']}/10")
+
+# Paso 4: Estructurar
+structure = system.structurer(analysis)
+print(f"Capítulos: {len(structure['capitulos'])}")
+
+# Paso 5: Generar Capítulo 1
+chapter = system.generator(1, structure['capitulos'][0], structure)
+print(f"Capítulo escrito: {len(chapter['contenido'].split())} palabras")
+
+# Paso 6: Revisar estilo
+improved = system.style_reviewer(chapter)
+print(f"Score antes: {chapter['score']}, Después: {improved['score']}")
+
+# Paso 7: Guardar
+system.save_chapter(improved, 1)
+print("✅ Capítulo guardado")
+Ejemplo 2: Validación Completa
+python# Después de escribir varios capítulos
+chapters = system.load_all_chapters()
+
+# Validar coherencia
+validation = system.validator(chapters)
+
+if validation['inconsistencies']:
+    print(f"⚠️ {len(validation['inconsistencies'])} inconsistencias encontradas:")
+    for inc in validation['inconsistencies']:
+        print(f"  - Cap {inc['chapter']}: {inc['problem']}")
+else:
+    print("✅ Libro coherente")
+
+# Aprender técnicas
+lessons = system.narrative_master(chapters, validation)
+print(f"Lecciones: {lessons['techniques']}")
+
+🔧 CONFIGURACIÓN
+Edita config.py para personalizar:
+python# config.py
+CONFIG = {
+    "author": "Ana Sabino",
+    "author_id": "2026-0056",
+    "university": "Dominicano Americana",
+    
+    # Modelos de IA (opcional)
+    "llm_provider": "openai",  # o "anthropic", "local"
+    "api_key": "tu_clave_aqui",
+    
+    # Almacenamiento
+    "storage_path": "./books",
+    "backup_enabled": True,
+    
+    # Preferencias de escritura
+    "default_language": "es",
+    "default_tone": "narrativo",
+    
+    # Validación
+    "check_consistency": True,
+    "auto_backup_chapters": True,
+}
+
+📊 FEATURES PRINCIPALES
+✅ 7 Agentes especializados - Cada uno con tarea específica
+✅ Sistema de aprendizaje - Adaptación a preferencias del autor
+✅ Validación de coherencia - Detecta inconsistencias automáticamente
+✅ Enseñanza de técnicas - Aprende mientras escribes
+✅ Almacenamiento persistente - Guarda tu progreso
+✅ Exportación a múltiples formatos - Markdown, Word, PDF
+✅ Interfaz CLI amigable - Fácil de usar desde terminal
+✅ Sistema de feedback - Aprende de tu retroalimentación
+
+🛠️ DESARROLLADO POR
+Base de arquitectura: Diego Mercedes Llauger (2026-0048)
+Implementación Python: Ana Sabino (2026-0056)
+Universidad Dominicano Americana
+Carrera: Ingeniería en Ciberseguridad
+
+📝 LICENCIA
+MIT License - Libre para usar, modificar y compartir
+
+🤝 CONTRIBUCIONES
+¿Quieres mejorar el sistema?
+
+Fork el repositorio
+Crea rama para tu feature
+Commit tus cambios
+Push y abre Pull Request
+
+
+📧 CONTACTO
+
+Ana Sabino: ana.sabino@dominicano.edu.do
+Diego Mercedes: diego.mercedes@dominicano.edu.do
+
+
+📚 RECURSOS
+
+Documentación completa
+Ejemplos avanzados
+Tests
+Troubleshooting
+
+
+Versión 1.0 | 2024
+
+Sistema profesional para escritores que quieren mejorar su craft
+
+
                     
                     └───────────────────────────────┘
