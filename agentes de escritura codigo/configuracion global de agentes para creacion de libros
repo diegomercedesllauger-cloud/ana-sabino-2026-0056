@@ -1,0 +1,245 @@
+# config.py
+"""
+Configuración global del Sistema de Agentes para Creación de Libros
+Autora: Ana Sabino (2026-0056)
+Base: Diego Mercedes Llauger (2026-0048)
+"""
+ 
+import os
+from pathlib import Path
+ 
+# ========================================================================
+# INFORMACIÓN DEL AUTOR
+# ========================================================================
+ 
+AUTHOR_INFO = {
+    "name": "Ana Sabino",
+    "id": "2026-0056",
+    "university": "Universidad Dominicano Americana",
+    "major": "Ingeniería en Ciberseguridad",
+}
+ 
+# ========================================================================
+# CONFIGURACIÓN DE RUTAS
+# ========================================================================
+ 
+BASE_DIR = Path(__file__).parent
+BOOKS_DIR = BASE_DIR / "books"
+STORAGE_DIR = BASE_DIR / "storage"
+TEMPLATES_DIR = BASE_DIR / "templates"
+LOGS_DIR = BASE_DIR / "logs"
+ 
+# Crear directorios si no existen
+for directory in [BOOKS_DIR, STORAGE_DIR, LOGS_DIR]:
+    directory.mkdir(exist_ok=True)
+ 
+# ========================================================================
+# CONFIGURACIÓN DE LLM (IA)
+# ========================================================================
+ 
+LLM_CONFIG = {
+    # Proveedor: "openai", "anthropic", "local", "mock"
+    "provider": os.getenv("LLM_PROVIDER", "mock"),
+    
+    # API Keys
+    "openai_api_key": os.getenv("OPENAI_API_KEY", ""),
+    "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY", ""),
+    
+    # Modelos
+    "openai_model": "gpt-4-turbo-preview",
+    "anthropic_model": "claude-3-opus-20240229",
+    
+    # Parámetros
+    "temperature": 0.7,
+    "max_tokens": 2000,
+}
+ 
+# ========================================================================
+# CONFIGURACIÓN DE ALMACENAMIENTO
+# ========================================================================
+ 
+STORAGE_CONFIG = {
+    "format": "json",  # json, sqlite, mongodb
+    "auto_backup": True,
+    "backup_interval": 3600,  # segundos
+    "max_backups": 10,
+}
+ 
+# ========================================================================
+# CONFIGURACIÓN DE ESCRITURA
+# ========================================================================
+ 
+WRITING_CONFIG = {
+    "default_language": "es",
+    "default_tone": "narrativo",
+    "enable_spell_check": True,
+    "enable_grammar_check": True,
+    
+    # Parámetros de generación
+    "chapter_min_words": 2000,
+    "chapter_max_words": 5000,
+    "paragraph_max_length": 300,  # palabras
+    "sentence_max_length": 50,  # palabras
+}
+ 
+# ========================================================================
+# CONFIGURACIÓN DE VALIDACIÓN
+# ========================================================================
+ 
+VALIDATION_CONFIG = {
+    "check_consistency": True,
+    "check_character_development": True,
+    "check_plot_logic": True,
+    "check_timeline": True,
+    "check_worldbuilding": True,
+    "spell_check_language": "es",
+}
+ 
+# ========================================================================
+# CONFIGURACIÓN DE AGENTES
+# ========================================================================
+ 
+AGENTS_CONFIG = {
+    "router": {
+        "enabled": True,
+        "timeout": 30,
+    },
+    "analyzer": {
+        "enabled": True,
+        "timeout": 45,
+    },
+    "structurer": {
+        "enabled": True,
+        "timeout": 60,
+    },
+    "generator": {
+        "enabled": True,
+        "timeout": 120,  # Generación toma más tiempo
+    },
+    "style_reviewer": {
+        "enabled": True,
+        "timeout": 60,
+    },
+    "validator": {
+        "enabled": True,
+        "timeout": 90,
+    },
+    "narrative_master": {
+        "enabled": True,
+        "timeout": 60,
+    },
+    "adapter": {
+        "enabled": True,
+        "timeout": 30,
+    },
+}
+ 
+# ========================================================================
+# CONFIGURACIÓN DE LOGGING
+# ========================================================================
+ 
+LOGGING_CONFIG = {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "file": str(LOGS_DIR / "system.log"),
+}
+ 
+# ========================================================================
+# CONFIGURACIÓN DE EXPORTACIÓN
+# ========================================================================
+ 
+EXPORT_CONFIG = {
+    "formats": ["md", "docx", "pdf", "txt"],
+    "default_format": "md",
+    "include_metadata": True,
+    "include_statistics": True,
+}
+ 
+# ========================================================================
+# MENSAJES DEL SISTEMA
+# ========================================================================
+ 
+SYSTEM_MESSAGES = {
+    "welcome": """
+╔═══════════════════════════════════════════════════════════╗
+║     SISTEMA DE AGENTES PARA CREACIÓN DE LIBROS           ║
+║     Autora: Ana Sabino (2026-0056)                       ║
+║     Universidad Dominicano Americana                     ║
+║     Ingeniería en Ciberseguridad                         ║
+╚═══════════════════════════════════════════════════════════╝
+""",
+    "help": """
+Comandos disponibles:
+  - router <idea>              : Clasificar tipo de libro
+  - analyze <idea>             : Analizar propuesta
+  - structure                  : Crear estructura
+  - generate <chapter>         : Generar capítulo
+  - review <chapter>           : Revisar estilo
+  - validate                   : Validar libro completo
+  - learn <topic>              : Aprender técnicas
+  - save <chapter>             : Guardar capítulo
+  - load <chapter>             : Cargar capítulo
+  - export <format>            : Exportar libro
+  - help                       : Mostrar esta ayuda
+  - exit                       : Salir
+""",
+}
+ 
+# ========================================================================
+# PARÁMETROS DE CALIDAD
+# ========================================================================
+ 
+QUALITY_THRESHOLDS = {
+    "clarity_min": 4.0,  # 0-10
+    "style_score_min": 6.0,  # 0-10
+    "consistency_score_min": 7.0,  # 0-10
+    "coherence_min": 7.0,  # 0-10
+}
+ 
+# ========================================================================
+# CONFIGURACIÓN AVANZADA
+# ========================================================================
+ 
+DEBUG_MODE = os.getenv("DEBUG", "False").lower() == "true"
+DRY_RUN = os.getenv("DRY_RUN", "False").lower() == "true"
+VERBOSE = os.getenv("VERBOSE", "False").lower() == "true"
+ 
+# ========================================================================
+# DICCIONARIOS ESPECIALIZADOS
+# ========================================================================
+ 
+BOOK_TYPES = {
+    "FICCIÓN": {
+        "subtipos": ["Novela", "Cuento", "Relato corto"],
+        "elementos": ["Protagonista", "Conflicto", "Escenario", "Trama", "Temas", "Resolución"]
+    },
+    "NO_FICCIÓN": {
+        "subtipos": ["Ensayo", "Biografía", "Reportaje", "Autoayuda"],
+        "elementos": ["Tema", "Tesis", "Audiencia", "Estructura", "Fuentes", "Conclusión"]
+    },
+    "TÉCNICO": {
+        "subtipos": ["Manual", "Guía", "Tutorial", "Documentación"],
+        "elementos": ["Objetivo", "Audiencia", "Requisitos", "Contenido", "Ejemplos", "Conclusión"]
+    },
+    "ACADÉMICO": {
+        "subtipos": ["Tesis", "Investigación", "Paper", "Monografía"],
+        "elementos": ["Tema", "Hipótesis", "Método", "Resultados", "Análisis", "Conclusiones"]
+    },
+    "POESÍA": {
+        "subtipos": ["Libro de poemas", "Prosa poética", "Verso libre"],
+        "elementos": ["Ritmo", "Forma", "Emoción", "Lenguaje figurado"]
+    }
+}
+ 
+# ========================================================================
+# VALORES POR DEFECTO
+# ========================================================================
+ 
+DEFAULTS = {
+    "chapters_in_book": 10,
+    "words_per_chapter": 3500,
+    "language": "es",
+    "encoding": "utf-8",
+}
+ 
+print("✅ Configuración cargada correctamente")
