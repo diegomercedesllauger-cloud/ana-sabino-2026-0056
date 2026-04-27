@@ -332,3 +332,337 @@ class ChapterProgressReport(BaseModel):
 class Config:
     arbitrary_types_allowed = True
  
+# core/models.py
+"""
+Modelos de datos para el Sistema de Agentes de Libros
+Usando Pydantic para validación
+"""
+ 
+from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any
+from datetime import datetime
+from enum import Enum
+ 
+# ========================================================================
+# ENUMERACIONES
+# ========================================================================
+ 
+class BookTypeEnum(str, Enum):
+    """Tipos de libros"""
+    FICCION = "FICCIÓN"
+    NO_FICCION = "NO_FICCIÓN"
+    TECNICO = "TÉCNICO"
+    ACADEMICO = "ACADÉMICO"
+    POESIA = "POESÍA"
+ 
+class SeverityEnum(str, Enum):
+    """Niveles de severidad"""
+    CRITICA = "CRÍTICA"
+    ALTA = "ALTA"
+    MEDIA = "MEDIA"
+    BAJA = "BAJA"
+ 
+class StatusEnum(str, Enum):
+    """Estados de capítulos/libros"""
+    BORRADOR = "BORRADOR"
+    EN_REVISION = "EN_REVISIÓN"
+    REVISADO = "REVISADO"
+    FINAL = "FINAL"
+ 
+# ========================================================================
+# MODELOS BASE
+# ========================================================================
+ 
+class BaseAgent(BaseModel):
+    """Modelo base para agentes"""
+    agent_name: str
+    timestamp: datetime = Field(default_factory=datetime.now)
+    tokens_used: int = 0
+    execution_time_ms: float = 0.0
+ 
+class Component(BaseModel):
+    """Componente de una idea/libro"""
+    component: str
+    is_clear: bool
+    clarity_level: int = Field(ge=0, le=10)
+    description: str
+    notes: Optional[str] = None
+ 
+# ========================================================================
+# MODELOS DEL ROUTER
+# ========================================================================
+ 
+class RouterOutput(BaseAgent):
+    """Salida del Agente Router"""
+    agent_name: str = "Router"
+    
+    book_type: BookTypeEnum
+    book_subtype: str
+    genre: Optional[str]
+    target_audience: str
+    estimated_length_words: int
+    tone: str
+    purpose: str
+    rama: str  # "RAMA_A", "RAMA_B", "RAMA_C"
+    next_step: str
+    confidence: int = Field(ge=0, le=10)
+ 
+# ========================================================================
+# MODELOS DEL ANALIZADOR
+# ========================================================================
+ 
+class AnalysisComponent(BaseModel):
+    """Componente analizado"""
+    component: str
+    is_clear: bool
+    what_author_said: str
+    clarity_level: int = Field(ge=0, le=10)
+    observation: str
+ 
+class AnalyzerOutput(BaseAgent):
+    """Salida del Agente Analyzer"""
+    agent_name: str = "Analyzer"
+    
+    original_idea: str
+    components_identified: List[AnalysisComponent]
+    idea_summary: Dict[str, str]
+    overall_clarity: float = Field(ge=0, le=10)
+    ready_for_structure: bool
+    strong_points: List[str]
+    weak_points: List[str]
+    recommendation: str
+ 
+# ========================================================================
+# MODELOS DEL ESTRUCTURADOR
+# ========================================================================
+ 
+class Chapter(BaseModel):
+    """Definición de un capítulo"""
+    number: int
+    title: str
+    subtitle: Optional[str] = None
+    objective: str
+    key_points: List[str]
+    estimated_words: int = Field(ge=500, le=10000)
+    position_in_arc: str  # introducción, desarrollo, clímax, resolución
+    content: Optional[str] = None
+    status: StatusEnum = StatusEnum.BORRADOR
+ 
+class StructureOutput(BaseAgent):
+    """Salida del Agente Structurer"""
+    agent_name: str = "Structurer"
+    
+    book_type: BookTypeEnum
+    structure_name: str
+    chapters: List[Chapter]
+    general_outline: str
+    structure_notes: str
+    total_estimated_words: int
+    chapter_count: int
+ 
+# ========================================================================
+# MODELOS DEL GENERADOR
+# ========================================================================
+ 
+class GeneratorOutput(BaseAgent):
+    """Salida del Agente Generator"""
+    agent_name: str = "Generator"
+    
+    chapter_number: int
+    chapter_title: str
+    content: str
+    word_count: int
+    key_points_covered: List[str]
+    tone_maintained: str
+    narrative_flow_quality: float = Field(ge=0, le=10)
+    characters_introduced: List[str] = []
+    next_chapter_hint: Optional[str] = None
+ 
+# ========================================================================
+# MODELOS DEL REVISOR DE ESTILO
+# ========================================================================
+ 
+class StyleProblem(BaseModel):
+    """Un problema de estilo encontrado"""
+    problem_type: str  # clarity, rhythm, voice, description, grammar
+    location: str  # qué párrafo/línea
+    problem_description: str
+    solution: str
+    priority: SeverityEnum
+ 
+class StyleReviewOutput(BaseAgent):
+    """Salida del Agente Style Reviewer"""
+    agent_name: str = "StyleReviewer"
+    
+    chapter_number: int
+    chapter_title: str
+    problems_found: List[StyleProblem]
+    improved_content: str
+    main_changes: List[str]
+    identified_strengths: List[str]
+    score_before: float = Field(ge=0, le=10)
+    score_after: float = Field(ge=0, le=10)
+    improvement_percentage: float
+ 
+# ========================================================================
+# MODELOS DEL VALIDADOR
+# ========================================================================
+ 
+class Inconsistency(BaseModel):
+    """Una inconsistencia encontrada"""
+    inconsistency_type: str  # logic, character, details, worldbuilding
+    location: str  # chapter X
+    problem_description: str
+    impact: SeverityEnum
+    proposed_solution: str
+ 
+class ValidatorOutput(BaseAgent):
+    """Salida del Agente Validator"""
+    agent_name: str = "Validator"
+    
+    book_title: str
+    inconsistencies: List[Inconsistency]
+    total_inconsistencies: int
+    critical_count: int
+    overall_coherence: float = Field(ge=0, le=10)
+    verdict: str  # COHERENTE, NECESITA_AJUSTES, REQUIERE_REVISIÓN
+    next_steps: List[str]
+ 
+# ========================================================================
+# MODELOS DEL MAESTRO DE NARRATIVA
+# ========================================================================
+ 
+class TeachingLesson(BaseModel):
+    """Una lección de escritura"""
+    technique: str
+    what_is_it: str
+    why_matters: str
+    how_to_use: List[str]
+    example_from_book: str
+    professional_example: Optional[str] = None
+    practical_exercise: str
+ 
+class NarrativeMasterOutput(BaseAgent):
+    """Salida del Agente Narrative Master"""
+    agent_name: str = "NarrativeMaster"
+    
+    problematic_area: str
+    lessons: List[TeachingLesson]
+    observed_patterns: List[str]
+    recommended_resources: List[Dict[str, str]]
+    improvement_plan: List[str]
+    summary_for_author: str
+ 
+# ========================================================================
+# MODELOS DEL ADAPTADOR
+# ========================================================================
+ 
+class FeedbackEntry(BaseModel):
+    """Entrada de feedback para aprendizaje"""
+    feedback: str
+    lesson_extracted: str
+    preference_key: str
+    old_value: Any
+    new_value: Any
+    confidence: float = Field(ge=0, le=1)
+ 
+class AdapterOutput(BaseAgent):
+    """Salida del Agente Adapter"""
+    agent_name: str = "Adapter"
+    
+    feedback_received: str
+    lessons_learned: List[str]
+    preferences_updated: Dict[str, Any]
+    learning_history: List[FeedbackEntry]
+    confidence_level: float = Field(ge=0, le=1)
+    next_generation_changes: str
+ 
+# ========================================================================
+# MODELOS DEL LIBRO
+# ========================================================================
+ 
+class BookMetadata(BaseModel):
+    """Metadatos del libro"""
+    title: str
+    author: str
+    author_id: str
+    book_type: BookTypeEnum
+    genre: Optional[str]
+    created_at: datetime = Field(default_factory=datetime.now)
+    last_modified: datetime = Field(default_factory=datetime.now)
+    status: StatusEnum = StatusEnum.BORRADOR
+    
+class Book(BaseModel):
+    """Definición completa del libro"""
+    metadata: BookMetadata
+    original_idea: str
+    router_output: RouterOutput
+    analyzer_output: AnalyzerOutput
+    structure_output: StructureOutput
+    chapters: List[Chapter]
+    chapters_written: int = 0
+    validation_results: Optional[ValidatorOutput] = None
+    learning_history: List[FeedbackEntry] = []
+    
+    def progress(self) -> float:
+        """Calcula el porcentaje de progreso"""
+        if not self.chapters:
+            return 0
+        return (self.chapters_written / len(self.chapters)) * 100
+ 
+# ========================================================================
+# MODELOS DE USUARIO
+# ========================================================================
+ 
+class UserPreferences(BaseModel):
+    """Preferencias del usuario"""
+    name: str
+    writing_style: str  # formal, casual, poetic
+    preferred_pov: str  # first, second, third
+    chapter_length_preference: str  # short, medium, long
+    description_level: str  # sparse, moderate, rich
+    dialogue_frequency: str  # sparse, frequent, very_frequent
+    pacing_preference: str  # slow, medium, fast
+ 
+class AuthorProfile(BaseModel):
+    """Perfil del autor"""
+    author_name: str
+    author_id: str
+    university: str
+    major: str
+    books_written: int = 0
+    total_words_written: int = 0
+    preferences: UserPreferences
+    learning_history: List[str] = []
+ 
+# ========================================================================
+# MODELOS DE RESPUESTA DEL SISTEMA
+# ========================================================================
+ 
+class SystemResponse(BaseModel):
+    """Respuesta estándar del sistema"""
+    success: bool
+    message: str
+    data: Optional[Dict[str, Any]] = None
+    errors: List[str] = []
+    timestamp: datetime = Field(default_factory=datetime.now)
+ 
+class ChapterProgressReport(BaseModel):
+    """Reporte de progreso de capítulo"""
+    chapter_number: int
+    chapter_title: str
+    status: StatusEnum
+    word_count: int
+    style_score: float
+    revised_times: int
+    last_updated: datetime
+    completion_percentage: float
+ 
+# ========================================================================
+# CONFIGURACIÓN
+# ========================================================================
+ 
+# Hacer los modelos compatibles con exportación JSON
+class Config:
+    arbitrary_types_allowed = True
+
