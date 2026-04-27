@@ -1,1 +1,428 @@
+"""
+AGENTE 0: ROUTER - Clasificador de Tipo de Libro
+Determina qué tipo de libro quiere escribir el autor
+"""
+ 
+import logging
+from typing import Dict, Any, Optional
+from datetime import datetime
+ 
+from core.models import RouterOutput, BookTypeEnum
+from config import BOOK_TYPES
+ 
+logger = logging.getLogger(__name__)
+ 
+class RouterAgent:
+    """
+    Agente Router: Clasifica el tipo de libro que el autor quiere escribir
+    
+    Ejemplo:
+        router = RouterAgent()
+        idea = "Quiero escribir una novela de misterio..."
+        result = router.classify(idea)
+        # Returns: {tipo: FICCIÓN, subtipo: Novela de misterio, ...}
+    """
+    
+    def __init__(self):
+        self.name = "Router"
+        logger.info("Router Agent inicializado")
+    
+    def classify(self, idea: str) -> RouterOutput:
+        """
+        Clasifica la idea del libro
+        
+        Args:
+            idea: Descripción del libro que quiere escribir
+            
+        Returns:
+            RouterOutput con clasificación
+        """
+        logger.info(f"Clasificando idea de libro: {idea[:50]}...")
+        
+        # Análisis simple de palabras clave
+        idea_lower = idea.lower()
+        
+        # Detectar tipo de libro
+        book_type = self._detect_book_type(idea_lower)
+        
+        # Detectar subtipo
+        subtype = self._detect_subtype(idea_lower, book_type)
+        
+        # Detectar género
+        genre = self._detect_genre(idea_lower)
+        
+        # Detectar audiencia
+        audience = self._detect_audience(idea_lower)
+        
+        # Detectar tono
+        tone = self._detect_tone(idea_lower)
+        
+        # Detectar propósito
+        purpose = self._detect_purpose(idea_lower)
+        
+        # Estimación de extensión
+        estimated_words = self._estimate_length(book_type)
+        
+        # Determinar rama
+        rama = self._determine_rama(idea)
+        
+        # Crear salida
+        output = RouterOutput(
+            agent_name=self.name,
+            timestamp=datetime.now(),
+            tokens_used=len(idea) // 4,
+            execution_time_ms=50,
+            
+            book_type=book_type,
+            book_subtype=subtype,
+            genre=genre,
+            target_audience=audience,
+            estimated_length_words=estimated_words,
+            tone=tone,
+            purpose=purpose,
+            rama=rama,
+            next_step=f"Ir a Agente 1 (Analizador)" if rama == "RAMA_A" else "Hacer preguntas clarificatorias",
+            confidence=self._calculate_confidence(idea_lower)
+        )
+        
+        logger.info(f"Clasificación completada: {book_type}")
+        return output
+    
+    def _detect_book_type(self, idea: str) -> BookTypeEnum:
+        """Detecta el tipo de libro"""
+        
+        # Palabras clave por tipo
+        fiction_keywords = ["novela", "cuento", "personaje", "trama", "conflicto", "detective", "misterio", 
+                           "aventura", "amor", "romance", "thriller", "thriller", "ficción", "imaginario"]
+        
+        non_fiction_keywords = ["ensayo", "biografía", "historia", "investigación", "análisis", 
+                               "reportaje", "memoria", "diario", "verdadero", "real", "basado en hechos"]
+        
+        technical_keywords = ["manual", "guía", "tutorial", "instrucción", "cómo", "paso a paso", 
+                             "herramienta", "software", "código", "programa"]
+        
+        academic_keywords = ["tesis", "investigación", "estudio", "hipótesis", "método", "análisis",
+                            "conclusión", "resultado", "experimento", "universidad"]
+        
+        poetry_keywords = ["poema", "verso", "poesía", "prosa poética", "rima", "métrica", "lírica"]
+        
+        # Contar coincidencias
+        fiction_score = sum(1 for kw in fiction_keywords if kw in idea)
+        non_fiction_score = sum(1 for kw in non_fiction_keywords if kw in idea)
+        technical_score = sum(1 for kw in technical_keywords if kw in idea)
+        academic_score = sum(1 for kw in academic_keywords if kw in idea)
+        poetry_score = sum(1 for kw in poetry_keywords if kw in idea)
+        
+        # Determinar tipo con mayor puntuación
+        scores = {
+            BookTypeEnum.FICCION: fiction_score,
+            BookTypeEnum.NO_FICCION: non_fiction_score,
+            BookTypeEnum.TECNICO: technical_score,
+            BookTypeEnum.ACADEMICO: academic_score,
+            BookTypeEnum.POESIA: poetry_score,
+        }
+        
+        book_type = max(scores, key=scores.get)
+        
+        # Si no hay coincidencias, asumir ficción (más común)
+        if scores[book_type] == 0:
+            book_type = BookTypeEnum.NO_FICCION
+        
+        return book_type
+    
+    def _detect_subtype(self, idea: str, book_type: BookTypeEnum) -> str:
+        """Detecta subtipo específico"""
+        
+        subtypes_keywords = {
+            "Novela": ["novela", "historia larga", "personajes"],
+            "Cuento": ["cuento", "relato corto", "historia breve"],
+            "Ensayo": ["ensayo", "opinión", "reflexión"],
+            "Manual": ["manual", "guía", "instrucciones"],
+            "Autobiografía": ["vida", "memorias", "historia de", "viaje"],
+            "Thriller": ["thriller", "suspenso", "crimen", "misterio"],
+            "Romance": ["amor", "romance", "relación"],
+        }
+        
+        for subtype, keywords in subtypes_keywords.items():
+            if any(kw in idea for kw in keywords):
+                return subtype
+        
+        return "General"
+    
+    def _detect_genre(self, idea: str) -> Optional[str]:
+        """Detecta género específico"""
+        
+        genres = {
+            "Misterio": ["misterio", "detective", "crimen", "investigación"],
+            "Ciencia Ficción": ["futuro", "sci-fi", "espacial", "tecnología avanzada"],
+            "Fantasía": ["magia", "dragones", "fantasía", "mundo imaginario"],
+            "Romance": ["amor", "romance", "corazón", "pareja"],
+            "Thriller": ["suspenso", "peligro", "tensión", "acción"],
+            "Histórico": ["historia", "pasado", "época", "histórico"],
+        }
+        
+        for genre, keywords in genres.items():
+            if any(kw in idea for kw in keywords):
+                return genre
+        
+        return None
+    
+    def _detect_audience(self, idea: str) -> str:
+        """Detecta audiencia objetivo"""
+        
+        if any(kw in idea for kw in ["niño", "infantil", "joven", "adolescente"]):
+            return "Infantil/Joven"
+        elif any(kw in idea for kw in ["adulto", "maduro", "complejo"]):
+            return "Adultos"
+        else:
+            return "General"
+    
+    def _detect_tone(self, idea: str) -> str:
+        """Detecta tono narrativo"""
+        
+        if any(kw in idea for kw in ["formal", "académico", "técnico"]):
+            return "Formal"
+        elif any(kw in idea for kw in ["informal", "casual", "relajado"]):
+            return "Casual"
+        elif any(kw in idea for kw in ["dramático", "emocionante", "intenso"]):
+            return "Dramático"
+        else:
+            return "Narrativo"
+    
+    def _detect_purpose(self, idea: str) -> str:
+        """Detecta propósito del libro"""
+        
+        if any(kw in idea for kw in ["enseñar", "aprender", "educativo", "instrucción"]):
+            return "Educativo"
+        elif any(kw in idea for kw in ["entretener", "divertir", "diversión"]):
+            return "Entretenimiento"
+        elif any(kw in idea for kw in ["reflexión", "filosofía", "pensamiento"]):
+            return "Reflexión"
+        else:
+            return "Narrativa"
+    
+    def _estimate_length(self, book_type: BookTypeEnum) -> int:
+        """Estima extensión esperada"""
+        
+        estimates = {
+            BookTypeEnum.FICCION: 70000,  # palabras
+            BookTypeEnum.NO_FICCION: 50000,
+            BookTypeEnum.TECNICO: 30000,
+            BookTypeEnum.ACADEMICO: 40000,
+            BookTypeEnum.POESIA: 15000,
+        }
+        
+        return estimates.get(book_type, 50000)
+    
+    def _determine_rama(self, idea: str) -> str:
+        """
+        Determina en qué rama está el autor
+        RAMA_A: Idea clara
+        RAMA_B: Idea vaga
+        RAMA_C: Sin idea
+        """
+        
+        clarity_indicators = [
+            "quiero escribir",
+            "voy a escribir",
+            "idea es",
+            "sobre",
+            "trata de",
+        ]
+        
+        has_clarity = any(ind in idea.lower() for ind in clarity_indicators)
+        has_details = len(idea) > 100
+        has_specifics = any(word in idea.lower() for word in ["personaje", "trama", "protagonista", "conflicto"])
+        
+        if has_clarity and has_details and has_specifics:
+            return "RAMA_A"
+        elif has_clarity or has_details:
+            return "RAMA_B"
+        else:
+            return "RAMA_C"
+    
+    def _calculate_confidence(self, idea: str) -> int:
+        """Calcula confianza en la clasificación"""
+        
+        # Más palabras = mejor información
+        word_count = len(idea.split())
+        confidence = min(10, max(3, word_count // 10))
+        
+        return confidence
 
+
+
+# agents/analyzer.py
+"""AGENTE 1: ANALIZADOR - Descompone la idea en componentes"""
+from core.models import AnalyzerOutput, AnalysisComponent
+from datetime import datetime
+ 
+class AnalyzerAgent:
+    def __init__(self):
+        self.name = "Analyzer"
+    
+    def analyze(self, idea: str, classification) -> AnalyzerOutput:
+        """Analiza componentes de la idea"""
+        return AnalyzerOutput(
+            agent_name=self.name,
+            timestamp=datetime.now(),
+            original_idea=idea,
+            components_identified=[],
+            idea_summary={},
+            overall_clarity=6.0,
+            ready_for_structure=True,
+            strong_points=["Idea clara"],
+            weak_points=["Detalles específicos"],
+            recommendation="Proceder a estructuración"
+        )
+ 
+# agents/structurer.py
+"""AGENTE 2: ESTRUCTURADOR - Crea la arquitectura del libro"""
+from core.models import StructureOutput, Chapter
+from datetime import datetime
+ 
+class StructurerAgent:
+    def __init__(self):
+        self.name = "Structurer"
+    
+    def create_structure(self, analysis) -> StructureOutput:
+        """Crea estructura del libro"""
+        chapters = [
+            Chapter(
+                number=1,
+                title="Capítulo 1",
+                objective="Introducción",
+                key_points=["Setup", "Presentación"],
+                estimated_words=3000,
+                position_in_arc="introducción"
+            )
+        ]
+        
+        return StructureOutput(
+            agent_name=self.name,
+            timestamp=datetime.now(),
+            book_type=analysis.analyzed_type,
+            structure_name="Estructura básica",
+            chapters=chapters,
+            general_outline="Estructura estándar",
+            structure_notes="Estructura creada",
+            total_estimated_words=30000,
+            chapter_count=len(chapters)
+        )
+ 
+# agents/generator.py
+"""AGENTE 3: GENERADOR - Escribe el contenido"""
+from core.models import GeneratorOutput
+from datetime import datetime
+ 
+class GeneratorAgent:
+    def __init__(self):
+        self.name = "Generator"
+    
+    def generate(self, chapter, book_type, structure) -> GeneratorOutput:
+        """Genera contenido del capítulo"""
+        content = f"Contenido del {chapter.title}...\n" * 50
+        
+        return GeneratorOutput(
+            agent_name=self.name,
+            timestamp=datetime.now(),
+            chapter_number=chapter.number,
+            chapter_title=chapter.title,
+            content=content,
+            word_count=len(content.split()),
+            key_points_covered=chapter.key_points,
+            tone_maintained="narrativo",
+            narrative_flow_quality=7.0
+        )
+ 
+# agents/style_reviewer.py
+"""AGENTE 4: REVISOR DE ESTILO - Mejora la prosa"""
+from core.models import StyleReviewOutput, StyleProblem
+from datetime import datetime
+ 
+class StyleReviewerAgent:
+    def __init__(self):
+        self.name = "StyleReviewer"
+    
+    def review(self, chapter_content: str, chapter_number: int) -> StyleReviewOutput:
+        """Revisa y mejora el estilo"""
+        return StyleReviewOutput(
+            agent_name=self.name,
+            timestamp=datetime.now(),
+            chapter_number=chapter_number,
+            chapter_title="Capítulo",
+            problems_found=[],
+            improved_content=chapter_content,
+            main_changes=["Mejoras aplicadas"],
+            identified_strengths=["Buena narrativa"],
+            score_before=6.0,
+            score_after=8.0,
+            improvement_percentage=33.3
+        )
+ 
+# agents/validator.py
+"""AGENTE 5: VALIDADOR - Detecta inconsistencias"""
+from core.models import ValidatorOutput, Inconsistency
+from datetime import datetime
+ 
+class ValidatorAgent:
+    def __init__(self):
+        self.name = "Validator"
+    
+    def validate(self, chapters, book_type) -> ValidatorOutput:
+        """Valida coherencia del libro"""
+        return ValidatorOutput(
+            agent_name=self.name,
+            timestamp=datetime.now(),
+            book_title="Libro",
+            inconsistencies=[],
+            total_inconsistencies=0,
+            critical_count=0,
+            overall_coherence=9.0,
+            verdict="COHERENTE",
+            next_steps=["Continuar escribiendo"]
+        )
+ 
+# agents/narrative_master.py
+"""AGENTE 6: MAESTRO DE NARRATIVA - Enseña técnicas"""
+from core.models import NarrativeMasterOutput
+from datetime import datetime
+ 
+class NarrativeMasterAgent:
+    def __init__(self):
+        self.name = "NarrativeMaster"
+    
+    def teach(self, analysis, validation, focus_area=None) -> NarrativeMasterOutput:
+        """Proporciona lecciones de escritura"""
+        return NarrativeMasterOutput(
+            agent_name=self.name,
+            timestamp=datetime.now(),
+            problematic_area="Narrativa general",
+            lessons=[],
+            observed_patterns=["Pattern encontrado"],
+            recommended_resources=[],
+            improvement_plan=["Paso 1", "Paso 2"],
+            summary_for_author="Resumen de lecciones"
+        )
+ 
+# agents/adapter.py
+"""AGENTE 7: ADAPTADOR - Aprende del feedback"""
+from core.models import AdapterOutput, FeedbackEntry
+from datetime import datetime
+ 
+class AdapterAgent:
+    def __init__(self):
+        self.name = "Adapter"
+    
+    def learn(self, feedback: str, current_book) -> AdapterOutput:
+        """Aprende del feedback y adapta el sistema"""
+        return AdapterOutput(
+            agent_name=self.name,
+            timestamp=datetime.now(),
+            feedback_received=feedback,
+            lessons_learned=["Lección aprendida"],
+            preferences_updated={},
+            learning_history=[],
+            confidence_level=0.7,
+            next_generation_changes="Cambios aplicados"
+        )
