@@ -1,0 +1,26 @@
+# core/__init__.py
+"""
+Módulo central del sistema de agentes de libros
+"""
+ 
+from core.book_system import BookAgentSystem, create_new_system
+from core.models import (
+    Book, Chapter, BookTypeEnum, StatusEnum,
+    RouterOutput, AnalyzerOutput, StructureOutput
+)
+ 
+__all__ = [
+    "BookAgentSystem",
+    "create_new_system",
+    "Book",
+    "Chapter",
+    "BookTypeEnum",
+    "StatusEnum",
+    "RouterOutput",
+    "AnalyzerOutput",
+    "StructureOutput",
+]
+ 
+__version__ = "1.0.0"
+__author__ = "Ana Sabino (2026-0056)"
+ 
