@@ -1,0 +1,252 @@
+# agents/router.py
+"""
+AGENTE 0: ROUTER - Clasificador de Tipo de Libro
+Determina qué tipo de libro quiere escribir el autor
+"""
+ 
+import logging
+from typing import Dict, Any, Optional
+from datetime import datetime
+ 
+from core.models import RouterOutput, BookTypeEnum
+from config import BOOK_TYPES
+ 
+logger = logging.getLogger(__name__)
+ 
+class RouterAgent:
+    """
+    Agente Router: Clasifica el tipo de libro que el autor quiere escribir
+    
+    Ejemplo:
+        router = RouterAgent()
+        idea = "Quiero escribir una novela de misterio..."
+        result = router.classify(idea)
+        # Returns: {tipo: FICCIÓN, subtipo: Novela de misterio, ...}
+    """
+    
+    def __init__(self):
+        self.name = "Router"
+        logger.info("Router Agent inicializado")
+    
+    def classify(self, idea: str) -> RouterOutput:
+        """
+        Clasifica la idea del libro
+        
+        Args:
+            idea: Descripción del libro que quiere escribir
+            
+        Returns:
+            RouterOutput con clasificación
+        """
+        logger.info(f"Clasificando idea de libro: {idea[:50]}...")
+        
+        # Análisis simple de palabras clave
+        idea_lower = idea.lower()
+        
+        # Detectar tipo de libro
+        book_type = self._detect_book_type(idea_lower)
+        
+        # Detectar subtipo
+        subtype = self._detect_subtype(idea_lower, book_type)
+        
+        # Detectar género
+        genre = self._detect_genre(idea_lower)
+        
+        # Detectar audiencia
+        audience = self._detect_audience(idea_lower)
+        
+        # Detectar tono
+        tone = self._detect_tone(idea_lower)
+        
+        # Detectar propósito
+        purpose = self._detect_purpose(idea_lower)
+        
+        # Estimación de extensión
+        estimated_words = self._estimate_length(book_type)
+        
+        # Determinar rama
+        rama = self._determine_rama(idea)
+        
+        # Crear salida
+        output = RouterOutput(
+            agent_name=self.name,
+            timestamp=datetime.now(),
+            tokens_used=len(idea) // 4,
+            execution_time_ms=50,
+            
+            book_type=book_type,
+            book_subtype=subtype,
+            genre=genre,
+            target_audience=audience,
+            estimated_length_words=estimated_words,
+            tone=tone,
+            purpose=purpose,
+            rama=rama,
+            next_step=f"Ir a Agente 1 (Analizador)" if rama == "RAMA_A" else "Hacer preguntas clarificatorias",
+            confidence=self._calculate_confidence(idea_lower)
+        )
+        
+        logger.info(f"Clasificación completada: {book_type}")
+        return output
+    
+    def _detect_book_type(self, idea: str) -> BookTypeEnum:
+        """Detecta el tipo de libro"""
+        
+        # Palabras clave por tipo
+        fiction_keywords = ["novela", "cuento", "personaje", "trama", "conflicto", "detective", "misterio", 
+                           "aventura", "amor", "romance", "thriller", "thriller", "ficción", "imaginario"]
+        
+        non_fiction_keywords = ["ensayo", "biografía", "historia", "investigación", "análisis", 
+                               "reportaje", "memoria", "diario", "verdadero", "real", "basado en hechos"]
+        
+        technical_keywords = ["manual", "guía", "tutorial", "instrucción", "cómo", "paso a paso", 
+                             "herramienta", "software", "código", "programa"]
+        
+        academic_keywords = ["tesis", "investigación", "estudio", "hipótesis", "método", "análisis",
+                            "conclusión", "resultado", "experimento", "universidad"]
+        
+        poetry_keywords = ["poema", "verso", "poesía", "prosa poética", "rima", "métrica", "lírica"]
+        
+        # Contar coincidencias
+        fiction_score = sum(1 for kw in fiction_keywords if kw in idea)
+        non_fiction_score = sum(1 for kw in non_fiction_keywords if kw in idea)
+        technical_score = sum(1 for kw in technical_keywords if kw in idea)
+        academic_score = sum(1 for kw in academic_keywords if kw in idea)
+        poetry_score = sum(1 for kw in poetry_keywords if kw in idea)
+        
+        # Determinar tipo con mayor puntuación
+        scores = {
+            BookTypeEnum.FICCION: fiction_score,
+            BookTypeEnum.NO_FICCION: non_fiction_score,
+            BookTypeEnum.TECNICO: technical_score,
+            BookTypeEnum.ACADEMICO: academic_score,
+            BookTypeEnum.POESIA: poetry_score,
+        }
+        
+        book_type = max(scores, key=scores.get)
+        
+        # Si no hay coincidencias, asumir ficción (más común)
+        if scores[book_type] == 0:
+            book_type = BookTypeEnum.NO_FICCION
+        
+        return book_type
+    
+    def _detect_subtype(self, idea: str, book_type: BookTypeEnum) -> str:
+        """Detecta subtipo específico"""
+        
+        subtypes_keywords = {
+            "Novela": ["novela", "historia larga", "personajes"],
+            "Cuento": ["cuento", "relato corto", "historia breve"],
+            "Ensayo": ["ensayo", "opinión", "reflexión"],
+            "Manual": ["manual", "guía", "instrucciones"],
+            "Autobiografía": ["vida", "memorias", "historia de", "viaje"],
+            "Thriller": ["thriller", "suspenso", "crimen", "misterio"],
+            "Romance": ["amor", "romance", "relación"],
+        }
+        
+        for subtype, keywords in subtypes_keywords.items():
+            if any(kw in idea for kw in keywords):
+                return subtype
+        
+        return "General"
+    
+    def _detect_genre(self, idea: str) -> Optional[str]:
+        """Detecta género específico"""
+        
+        genres = {
+            "Misterio": ["misterio", "detective", "crimen", "investigación"],
+            "Ciencia Ficción": ["futuro", "sci-fi", "espacial", "tecnología avanzada"],
+            "Fantasía": ["magia", "dragones", "fantasía", "mundo imaginario"],
+            "Romance": ["amor", "romance", "corazón", "pareja"],
+            "Thriller": ["suspenso", "peligro", "tensión", "acción"],
+            "Histórico": ["historia", "pasado", "época", "histórico"],
+        }
+        
+        for genre, keywords in genres.items():
+            if any(kw in idea for kw in keywords):
+                return genre
+        
+        return None
+    
+    def _detect_audience(self, idea: str) -> str:
+        """Detecta audiencia objetivo"""
+        
+        if any(kw in idea for kw in ["niño", "infantil", "joven", "adolescente"]):
+            return "Infantil/Joven"
+        elif any(kw in idea for kw in ["adulto", "maduro", "complejo"]):
+            return "Adultos"
+        else:
+            return "General"
+    
+    def _detect_tone(self, idea: str) -> str:
+        """Detecta tono narrativo"""
+        
+        if any(kw in idea for kw in ["formal", "académico", "técnico"]):
+            return "Formal"
+        elif any(kw in idea for kw in ["informal", "casual", "relajado"]):
+            return "Casual"
+        elif any(kw in idea for kw in ["dramático", "emocionante", "intenso"]):
+            return "Dramático"
+        else:
+            return "Narrativo"
+    
+    def _detect_purpose(self, idea: str) -> str:
+        """Detecta propósito del libro"""
+        
+        if any(kw in idea for kw in ["enseñar", "aprender", "educativo", "instrucción"]):
+            return "Educativo"
+        elif any(kw in idea for kw in ["entretener", "divertir", "diversión"]):
+            return "Entretenimiento"
+        elif any(kw in idea for kw in ["reflexión", "filosofía", "pensamiento"]):
+            return "Reflexión"
+        else:
+            return "Narrativa"
+    
+    def _estimate_length(self, book_type: BookTypeEnum) -> int:
+        """Estima extensión esperada"""
+        
+        estimates = {
+            BookTypeEnum.FICCION: 70000,  # palabras
+            BookTypeEnum.NO_FICCION: 50000,
+            BookTypeEnum.TECNICO: 30000,
+            BookTypeEnum.ACADEMICO: 40000,
+            BookTypeEnum.POESIA: 15000,
+        }
+        
+        return estimates.get(book_type, 50000)
+    
+    def _determine_rama(self, idea: str) -> str:
+        """
+        Determina en qué rama está el autor
+        RAMA_A: Idea clara
+        RAMA_B: Idea vaga
+        RAMA_C: Sin idea
+        """
+        
+        clarity_indicators = [
+            "quiero escribir",
+            "voy a escribir",
+            "idea es",
+            "sobre",
+            "trata de",
+        ]
+        
+        has_clarity = any(ind in idea.lower() for ind in clarity_indicators)
+        has_details = len(idea) > 100
+        has_specifics = any(word in idea.lower() for word in ["personaje", "trama", "protagonista", "conflicto"])
+        
+        if has_clarity and has_details and has_specifics:
+            return "RAMA_A"
+        elif has_clarity or has_details:
+            return "RAMA_B"
+        else:
+            return "RAMA_C"
+    
+    def _calculate_confidence(self, idea: str) -> int:
+        """Calcula confianza en la clasificación"""
+        
+        # Más palabras = mejor información
+        word_count = len(idea.split())
+        confidence = min(10, max(3, word_count // 10))
+        
+        return confidence
