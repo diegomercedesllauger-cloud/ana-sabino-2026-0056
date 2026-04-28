@@ -1,0 +1,334 @@
+"""
+SISTEMA DE AGENTES PARA CREACIÓN DE LIBROS
+Punto de entrada principal
+Autora: Ana Sabino (2026-0056)
+Base: Diego Mercedes Llauger (2026-0048)
+"""
+ 
+import sys
+import logging
+from typing import Optional
+ 
+from core.book_system import BookAgentSystem
+from config import (
+    SYSTEM_MESSAGES, DEBUG_MODE, AUTHOR_INFO,
+    LOGGING_CONFIG
+)
+ 
+# Configurar logging
+logging.basicConfig(
+    level=LOGGING_CONFIG["level"],
+    format=LOGGING_CONFIG["format"]
+)
+logger = logging.getLogger(__name__)
+ 
+# ========================================================================
+# INTERFAZ INTERACTIVA
+# ========================================================================
+ 
+class BookSystemCLI:
+    """Interfaz de línea de comandos para el sistema de libros"""
+    
+    def __init__(self):
+        self.system: Optional[BookAgentSystem] = None
+        self.running = True
+    
+    def start(self):
+        """Inicia la interfaz interactiva"""
+        print(SYSTEM_MESSAGES["welcome"])
+        
+        # Inicializar sistema
+        self.system = BookAgentSystem(
+            author_name=AUTHOR_INFO["name"],
+            author_id=AUTHOR_INFO["id"]
+        )
+        
+        # Loop interactivo
+        self.main_menu()
+    
+    def main_menu(self):
+        """Menú principal"""
+        while self.running:
+            print("\n" + "="*60)
+            print("MENÚ PRINCIPAL")
+            print("="*60)
+            print("""
+1. Crear nuevo libro
+2. Generar capítulo
+3. Revisar estilo
+4. Validar libro
+5. Aprender técnicas
+6. Ver progreso
+7. Exportar libro
+8. Ayuda
+9. Salir
+            """)
+            
+            choice = input("Selecciona opción (1-9): ").strip()
+            
+            if choice == "1":
+                self.create_new_book()
+            elif choice == "2":
+                self.generate_chapter()
+            elif choice == "3":
+                self.review_style()
+            elif choice == "4":
+                self.validate_book()
+            elif choice == "5":
+                self.learn_techniques()
+            elif choice == "6":
+                self.show_progress()
+            elif choice == "7":
+                self.export_book()
+            elif choice == "8":
+                print(SYSTEM_MESSAGES["help"])
+            elif choice == "9":
+                self.running = False
+                print("\n👋 ¡Hasta luego!")
+            else:
+                print("❌ Opción no válida")
+    
+    def create_new_book(self):
+        """Crear nuevo libro"""
+        print("\n📖 CREAR NUEVO LIBRO")
+        print("-" * 60)
+        
+        print("\nDescribe tu libro (qué tipo, de qué trata, para quién, etc.):")
+        idea = input("> ").strip()
+        
+        if not idea:
+            print("❌ Idea vacía")
+            return
+        
+        try:
+            result = self.system.start_new_book(idea)
+            
+            print(f"\n✅ Libro clasificado correctamente")
+            print(f"  Tipo: {result['type']}")
+            print(f"  Subtipo: {result['subtype']}")
+            print(f"  Claridad: {result['clarity']:.1f}/10")
+            
+            if result['weak_points']:
+                print(f"  ⚠️  Puntos a aclarar: {', '.join(result['weak_points'])}")
+            
+            # Preguntar si estructurar ahora
+            if input("\n¿Deseas estructurar el libro ahora? (s/n): ").lower() == 's':
+                self.structure_book_now()
+        
+        except Exception as e:
+            print(f"❌ Error: {e}")
+    
+    def structure_book_now(self):
+        """Estructura el libro"""
+        try:
+            result = self.system.structure_book()
+            
+            print(f"\n✅ Libro estructurado")
+            print(f"  Capítulos: {result['chapter_count']}")
+            print(f"  Palabras estimadas: {result['total_estimated_words']:,}")
+            
+            # Mostrar primeros 3 capítulos
+            print(f"\n  Primeros capítulos:")
+            for ch in result['chapters'][:3]:
+                print(f"    Cap {ch['number']}: {ch['title']} ({ch['estimated_words']} palabras)")
+        
+        except Exception as e:
+            print(f"❌ Error: {e}")
+    
+    def generate_chapter(self):
+        """Generar capítulo"""
+        if not self.system.current_book:
+            print("❌ No hay libro en memoria. Crea uno primero.")
+            return
+        
+        print(f"\n✍️  GENERAR CAPÍTULO")
+        print(f"  Capítulos disponibles: {len(self.system.current_book.chapters)}")
+        
+        try:
+            ch_num = int(input("Número de capítulo a generar: "))
+            
+            print("\n⏳ Generando capítulo...")
+            result = self.system.generate_chapter(ch_num)
+            
+            print(f"\n✅ Capítulo {ch_num} generado")
+            print(f"  Palabras: {result['word_count']}")
+            print(f"  Calidad narrativa: {result['narrative_flow_quality']:.1f}/10")
+            print(f"\n  Preview: {result['content_preview']}")
+        
+        except ValueError as e:
+            print(f"❌ Error: {e}")
+        except Exception as e:
+            print(f"❌ Error inesperado: {e}")
+    
+    def review_style(self):
+        """Revisar estilo de un capítulo"""
+        if not self.system.current_book:
+            print("❌ No hay libro en memoria.")
+            return
+        
+        print(f"\n🎨 REVISAR ESTILO")
+        
+        try:
+            ch_num = int(input("Número de capítulo a revisar: "))
+            
+            print("\n⏳ Analizando estilo...")
+            result = self.system.review_chapter_style(ch_num)
+            
+            print(f"\n✅ Revisión completada")
+            print(f"  Problemas encontrados: {result['problems_found']}")
+            print(f"  Score antes: {result['score_before']:.1f}")
+            print(f"  Score después: {result['score_after']:.1f}")
+            print(f"  Mejora: {result['improvement_percentage']:.1f}%")
+        
+        except Exception as e:
+            print(f"❌ Error: {e}")
+    
+    def validate_book(self):
+        """Validar coherencia"""
+        if not self.system.current_book:
+            print("❌ No hay libro en memoria.")
+            return
+        
+        print(f"\n✅ VALIDANDO COHERENCIA")
+        
+        try:
+            print("⏳ Analizando libro completo...")
+            result = self.system.validate_entire_book()
+            
+            print(f"\n✅ Validación completada")
+            print(f"  Inconsistencias: {result['total_inconsistencies']}")
+            print(f"  Críticas: {result['critical_count']}")
+            print(f"  Coherencia: {result['overall_coherence']:.1f}/10")
+            print(f"  Veredicto: {result['verdict']}")
+        
+        except Exception as e:
+            print(f"❌ Error: {e}")
+    
+    def learn_techniques(self):
+        """Aprender técnicas de escritura"""
+        if not self.system.current_book:
+            print("❌ No hay libro en memoria.")
+            return
+        
+        print(f"\n🎓 LECCIONES DE ESCRITURA")
+        
+        try:
+            area = input("Área de enfoque (Enter para automático): ").strip() or None
+            
+            print("⏳ Generando lecciones...")
+            result = self.system.get_writing_lessons(focus_area=area)
+            
+            print(f"\n✅ Lecciones generadas")
+            print(f"  Área: {result['problematic_area']}")
+            print(f"  Técnicas: {result['lesson_count']}")
+            print(f"\n  Resumen: {result['summary'][:200]}...")
+        
+        except Exception as e:
+            print(f"❌ Error: {e}")
+    
+    def show_progress(self):
+        """Mostrar progreso"""
+        if not self.system.current_book:
+            print("❌ No hay libro en memoria.")
+            return
+        
+        print(f"\n📊 PROGRESO DEL LIBRO")
+        print("-" * 60)
+        
+        progress = self.system.get_book_progress()
+        
+        print(f"  Título: {progress['title']}")
+        print(f"  Tipo: {progress['book_type']}")
+        print(f"  Capítulos: {progress['chapters_written']}/{progress['total_chapters']}")
+        print(f"  Progreso: {progress['progress_percentage']:.1f}%")
+        print(f"  Palabras: {progress['total_words']:,}")
+        print(f"  Creado: {progress['created_at']}")
+        print(f"  Última modificación: {progress['last_modified']}")
+        
+        # Barra de progreso visual
+        filled = int(progress['progress_percentage'] // 10)
+        bar = "█" * filled + "░" * (10 - filled)
+        print(f"  Progreso: [{bar}]")
+    
+    def export_book(self):
+        """Exportar libro"""
+        if not self.system.current_book:
+            print("❌ No hay libro en memoria.")
+            return
+        
+        print(f"\n💾 EXPORTAR LIBRO")
+        
+        try:
+            format_choice = input("Formato (md/txt): ").strip().lower() or "md"
+            
+            print("⏳ Exportando...")
+            content = self.system.export_book(format=format_choice)
+            
+            # Guardar archivo
+            filename = f"libro_exportado.{format_choice}"
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write(content)
+            
+            print(f"\n✅ Exportado a {filename}")
+            print(f"  Caracteres: {len(content):,}")
+        
+        except Exception as e:
+            print(f"❌ Error: {e}")
+ 
+# ========================================================================
+# EJEMPLO PROGRAMÁTICO
+# ========================================================================
+ 
+def example_usage():
+    """Ejemplo de uso programático (sin CLI)"""
+    print("📚 Ejemplo de uso programático\n")
+    
+    # Crear sistema
+    system = BookAgentSystem(
+        author_name="Ana Sabino",
+        author_id="2026-0056"
+    )
+    
+    # Crear libro
+    print("1️⃣  Creando nuevo libro...")
+    idea = "Quiero escribir una novela de misterio sobre una detective que resuelve crímenes en una ciudad distópica"
+    result = system.start_new_book(idea)
+    print(f"   ✅ Tipo: {result['type']}, Claridad: {result['clarity']}/10\n")
+    
+    # Estructurar
+    print("2️⃣  Estructurando libro...")
+    structure = system.structure_book()
+    print(f"   ✅ {structure['chapter_count']} capítulos creados\n")
+    
+    # Generar capítulo
+    print("3️⃣  Generando Capítulo 1...")
+    chapter = system.generate_chapter(1)
+    print(f"   ✅ {chapter['word_count']} palabras generadas\n")
+    
+    # Revisar estilo
+    print("4️⃣  Revisando estilo...")
+    review = system.review_chapter_style(1)
+    print(f"   ✅ Score mejorado de {review['score_before']:.1f} a {review['score_after']:.1f}\n")
+    
+    # Ver progreso
+    print("5️⃣  Progreso actual:")
+    progress = system.get_book_progress()
+    print(f"   📊 {progress['chapters_written']}/{progress['total_chapters']} capítulos")
+    print(f"   📈 {progress['progress_percentage']:.1f}% completado\n")
+ 
+# ========================================================================
+# MAIN
+# ========================================================================
+ 
+def main():
+    """Función principal"""
+    if len(sys.argv) > 1 and sys.argv[1] == "example":
+        # Modo ejemplo
+        example_usage()
+    else:
+        # Modo interactivo
+        cli = BookSystemCLI()
+        cli.start()
+ 
+if __name__ == "__main__":
+    main()
