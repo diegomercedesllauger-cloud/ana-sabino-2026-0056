@@ -1,0 +1,92 @@
+"""
+Manejador de persistencia en JSON
+Guarda y carga libros de forma segura
+"""
+ 
+import json
+import logging
+from pathlib import Path
+from typing import Optional
+from datetime import datetime
+ 
+from core.models import Book
+from config import STORAGE_DIR
+ 
+logger = logging.getLogger(__name__)
+ 
+class JSONHandler:
+    """Maneja almacenamiento y recuperación de libros en JSON"""
+    
+    def __init__(self, author_id: str = ""):
+        self.author_id = author_id
+        self.storage_dir = STORAGE_DIR / author_id
+        self.storage_dir.mkdir(parents=True, exist_ok=True)
+    
+    def save_book(self, book: Book) -> bool:
+        """Guarda un libro en JSON"""
+        try:
+            filename = self._get_filename(book)
+            filepath = self.storage_dir / filename
+            
+            # Convertir a JSON (con serialización personalizada)
+            book_dict = book.dict()
+            
+            # Guardar
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(book_dict, f, indent=2, default=str)
+            
+            logger.info(f"Libro guardado: {filepath}")
+            return True
+        except Exception as e:
+            logger.error(f"Error guardando libro: {e}")
+            return False
+    
+    def load_book(self, author_id: str, book_title: str) -> Optional[Book]:
+        """Carga un libro desde JSON"""
+        try:
+            storage_dir = STORAGE_DIR / author_id
+            files = list(storage_dir.glob(f"*{book_title}*.json"))
+            
+            if not files:
+                logger.warning(f"Libro no encontrado: {book_title}")
+                return None
+            
+            with open(files[0], 'r', encoding='utf-8') as f:
+                book_dict = json.load(f)
+            
+            # Aquí iría conversión desde dict a Book (simplificado)
+            logger.info(f"Libro cargado: {files[0]}")
+            return None  # Retornar objeto Book (requiere conversión completa)
+        except Exception as e:
+            logger.error(f"Error cargando libro: {e}")
+            return None
+    
+    def list_books(self) -> list:
+        """Lista todos los libros del autor"""
+        books = []
+        for file in self.storage_dir.glob("*.json"):
+            try:
+                with open(file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    books.append({
+                        "title": data.get("metadata", {}).get("title", "Desconocido"),
+                        "type": data.get("metadata", {}).get("book_type", "N/A"),
+                        "created": data.get("metadata", {}).get("created_at", "N/A"),
+                        "chapters": len(data.get("chapters", []))
+                    })
+            except:
+                pass
+        
+        return books
+    
+    def _get_filename(self, book: Book) -> str:
+        """Genera nombre de archivo seguro"""
+        title = book.metadata.title.replace(" ", "_")[:30]
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return f"{title}_{timestamp}.json"
+ 
+# storage/__init__.py
+"""Módulo de almacenamiento"""
+from storage.json_handler import JSONHandler
+ 
+__all__ = ["JSONHandler"]
