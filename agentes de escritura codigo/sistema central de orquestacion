@@ -1,0 +1,486 @@
+"""
+Sistema Central de Orquestación de Agentes
+Coordina todos los agentes y maneja el flujo de trabajo
+"""
+ 
+import json
+import logging
+from typing import Optional, List, Dict, Any
+from datetime import datetime
+from pathlib import Path
+ 
+from core.models import (
+    Book, BookMetadata, AuthorProfile, UserPreferences,
+    RouterOutput, AnalyzerOutput, StructureOutput,
+    BookTypeEnum, StatusEnum
+)
+from agents.router import RouterAgent
+from agents.analyzer import AnalyzerAgent
+from agents.structurer import StructurerAgent
+from agents.generator import GeneratorAgent
+from agents.style_reviewer import StyleReviewerAgent
+from agents.validator import ValidatorAgent
+from agents.narrative_master import NarrativeMasterAgent
+from agents.adapter import AdapterAgent
+from storage.json_handler import JSONHandler
+from config import AUTHOR_INFO, LOGGING_CONFIG, SYSTEM_MESSAGES
+ 
+# ========================================================================
+# LOGGING
+# ========================================================================
+ 
+logging.basicConfig(
+    level=LOGGING_CONFIG["level"],
+    format=LOGGING_CONFIG["format"],
+    handlers=[
+        logging.FileHandler(LOGGING_CONFIG["file"]),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+ 
+# ========================================================================
+# SISTEMA PRINCIPAL
+# ========================================================================
+ 
+class BookAgentSystem:
+    """
+    Sistema orquestador de agentes para creación de libros.
+    
+    Coordina el trabajo de 7 agentes especializados:
+    1. Router - Clasificación
+    2. Analyzer - Análisis
+    3. Structurer - Estructuración
+    4. Generator - Generación
+    5. StyleReviewer - Revisión de estilo
+    6. Validator - Validación
+    7. NarrativeMaster - Enseñanza
+    8. Adapter - Aprendizaje
+    """
+    
+    def __init__(self, author_name: Optional[str] = None, author_id: Optional[str] = None):
+        """
+        Inicializa el sistema
+        
+        Args:
+            author_name: Nombre del autor (default: Ana Sabino)
+            author_id: ID del autor (default: 2026-0056)
+        """
+        self.author_name = author_name or AUTHOR_INFO["name"]
+        self.author_id = author_id or AUTHOR_INFO["id"]
+        
+        # Inicializar agentes
+        self.router = RouterAgent()
+        self.analyzer = AnalyzerAgent()
+        self.structurer = StructurerAgent()
+        self.generator = GeneratorAgent()
+        self.style_reviewer = StyleReviewerAgent()
+        self.validator = ValidatorAgent()
+        self.narrative_master = NarrativeMasterAgent()
+        self.adapter = AdapterAgent()
+        
+        # Sistema de almacenamiento
+        self.storage = JSONHandler(author_id=self.author_id)
+        
+        # Libro actual en memoria
+        self.current_book: Optional[Book] = None
+        
+        # Historial de sesiones
+        self.session_history = []
+        
+        logger.info(f"Sistema inicializado para {self.author_name} ({self.author_id})")
+        print(SYSTEM_MESSAGES["welcome"])
+    
+    # ====================================================================
+    # FLUJO PRINCIPAL
+    # ====================================================================
+    
+    def start_new_book(self, idea: str) -> Dict[str, Any]:
+        """
+        Inicia la creación de un nuevo libro
+        
+        Args:
+            idea: Descripción del libro
+            
+        Returns:
+            Clasificación y análisis inicial
+        """
+        logger.info(f"Iniciando nuevo libro. Idea: {idea[:50]}...")
+        
+        # Paso 1: Router - Clasificar
+        router_result = self.router.classify(idea)
+        
+        # Paso 2: Analyzer - Analizar
+        analyzer_result = self.analyzer.analyze(
+            idea=idea,
+            classification=router_result
+        )
+        
+        # Crear libro en memoria
+        metadata = BookMetadata(
+            title="[Sin título aún]",
+            author=self.author_name,
+            author_id=self.author_id,
+            book_type=router_result.book_type,
+            genre=router_result.genre,
+            status=StatusEnum.BORRADOR
+        )
+        
+        self.current_book = Book(
+            metadata=metadata,
+            original_idea=idea,
+            router_output=router_result,
+            analyzer_output=analyzer_result,
+            structure_output=None,
+            chapters=[]
+        )
+        
+        # Guardar
+        self.storage.save_book(self.current_book)
+        
+        return {
+            "type": router_result.book_type,
+            "subtype": router_result.book_subtype,
+            "clarity": analyzer_result.overall_clarity,
+            "ready_for_structure": analyzer_result.ready_for_structure,
+            "weak_points": analyzer_result.weak_points
+        }
+    
+    def structure_book(self) -> Dict[str, Any]:
+        """
+        Crea la estructura del libro
+        
+        Returns:
+            Estructura con índice de capítulos
+        """
+        if not self.current_book:
+            raise ValueError("No hay libro en memoria. Usa start_new_book primero.")
+        
+        logger.info("Estructurando libro...")
+        
+        # Paso 3: Structurer - Crear estructura
+        structure_result = self.structurer.create_structure(
+            analysis=self.current_book.analyzer_output
+        )
+        
+        # Actualizar libro
+        self.current_book.structure_output = structure_result
+        self.current_book.chapters = structure_result.chapters
+        
+        # Guardar
+        self.storage.save_book(self.current_book)
+        
+        return {
+            "structure_name": structure_result.structure_name,
+            "chapter_count": len(structure_result.chapters),
+            "total_estimated_words": structure_result.total_estimated_words,
+            "chapters": [
+                {
+                    "number": ch.number,
+                    "title": ch.title,
+                    "objective": ch.objective,
+                    "estimated_words": ch.estimated_words
+                }
+                for ch in structure_result.chapters
+            ]
+        }
+    
+    def generate_chapter(self, chapter_number: int) -> Dict[str, Any]:
+        """
+        Genera el contenido de un capítulo
+        
+        Args:
+            chapter_number: Número del capítulo a generar
+            
+        Returns:
+            Contenido generado y metadata
+        """
+        if not self.current_book or not self.current_book.structure_output:
+            raise ValueError("Debes estructurar el libro primero")
+        
+        # Encontrar el capítulo
+        chapter = next(
+            (ch for ch in self.current_book.chapters if ch.number == chapter_number),
+            None
+        )
+        
+        if not chapter:
+            raise ValueError(f"Capítulo {chapter_number} no encontrado")
+        
+        logger.info(f"Generando capítulo {chapter_number}: {chapter.title}")
+        
+        # Paso 4: Generator - Escribir
+        generated = self.generator.generate(
+            chapter=chapter,
+            book_type=self.current_book.metadata.book_type,
+            structure=self.current_book.structure_output
+        )
+        
+        # Actualizar capítulo
+        chapter.content = generated.content
+        chapter.status = StatusEnum.BORRADOR
+        self.current_book.chapters_written += 1
+        
+        # Guardar
+        self.storage.save_book(self.current_book)
+        
+        return {
+            "chapter_number": chapter_number,
+            "word_count": generated.word_count,
+            "content_preview": generated.content[:200] + "...",
+            "narrative_flow_quality": generated.narrative_flow_quality
+        }
+    
+    def review_chapter_style(self, chapter_number: int) -> Dict[str, Any]:
+        """
+        Revisa y mejora el estilo de un capítulo
+        
+        Args:
+            chapter_number: Número del capítulo
+            
+        Returns:
+            Versión mejorada y problemas encontrados
+        """
+        if not self.current_book:
+            raise ValueError("No hay libro en memoria")
+        
+        chapter = next(
+            (ch for ch in self.current_book.chapters if ch.number == chapter_number),
+            None
+        )
+        
+        if not chapter or not chapter.content:
+            raise ValueError(f"Capítulo {chapter_number} no tiene contenido")
+        
+        logger.info(f"Revisando estilo del capítulo {chapter_number}...")
+        
+        # Paso 5: StyleReviewer - Revisar y mejorar
+        review_result = self.style_reviewer.review(
+            chapter_content=chapter.content,
+            chapter_number=chapter_number
+        )
+        
+        # Actualizar capítulo
+        chapter.content = review_result.improved_content
+        chapter.status = StatusEnum.EN_REVISION
+        
+        # Guardar
+        self.storage.save_book(self.current_book)
+        
+        return {
+            "chapter_number": chapter_number,
+            "problems_found": len(review_result.problems_found),
+            "score_before": review_result.score_before,
+            "score_after": review_result.score_after,
+            "improvement_percentage": review_result.improvement_percentage,
+            "problems": [
+                {
+                    "type": p.problem_type,
+                    "priority": p.priority,
+                    "solution": p.solution
+                }
+                for p in review_result.problems_found[:5]  # Top 5
+            ]
+        }
+    
+    def validate_entire_book(self) -> Dict[str, Any]:
+        """
+        Valida coherencia de todo el libro
+        
+        Returns:
+            Inconsistencias encontradas y veredicto
+        """
+        if not self.current_book:
+            raise ValueError("No hay libro en memoria")
+        
+        logger.info("Validando coherencia del libro completo...")
+        
+        # Paso 6: Validator - Validar
+        validation_result = self.validator.validate(
+            chapters=self.current_book.chapters,
+            book_type=self.current_book.metadata.book_type
+        )
+        
+        # Guardar resultados
+        self.current_book.validation_results = validation_result
+        self.storage.save_book(self.current_book)
+        
+        return {
+            "total_inconsistencies": validation_result.total_inconsistencies,
+            "critical_count": validation_result.critical_count,
+            "overall_coherence": validation_result.overall_coherence,
+            "verdict": validation_result.verdict,
+            "inconsistencies": [
+                {
+                    "type": inc.inconsistency_type,
+                    "location": inc.location,
+                    "impact": inc.impact,
+                    "solution": inc.proposed_solution
+                }
+                for inc in validation_result.inconsistencies[:10]  # Top 10
+            ]
+        }
+    
+    def get_writing_lessons(self, focus_area: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Obtiene lecciones de escritura basadas en debilidades identificadas
+        
+        Args:
+            focus_area: Área específica (si None, usa problemas detectados)
+            
+        Returns:
+            Lecciones con ejemplos y ejercicios
+        """
+        if not self.current_book:
+            raise ValueError("No hay libro en memoria")
+        
+        logger.info("Generando lecciones de narrativa...")
+        
+        # Paso 7: NarrativeMaster - Enseñar
+        lessons_result = self.narrative_master.teach(
+            analysis=self.current_book.analyzer_output,
+            validation=self.current_book.validation_results,
+            focus_area=focus_area
+        )
+        
+        return {
+            "problematic_area": lessons_result.problematic_area,
+            "lesson_count": len(lessons_result.lessons),
+            "lessons": [
+                {
+                    "technique": lesson.technique,
+                    "what_is_it": lesson.what_is_it,
+                    "why_matters": lesson.why_matters
+                }
+                for lesson in lessons_result.lessons[:3]
+            ],
+            "improvement_plan": lessons_result.improvement_plan,
+            "summary": lessons_result.summary_for_author
+        }
+    
+    def process_feedback(self, feedback: str, chapter_number: int = 0) -> Dict[str, Any]:
+        """
+        Procesa feedback del autor y adapta el sistema
+        
+        Args:
+            feedback: Comentario del autor
+            chapter_number: Número de capítulo (0 = feedback general)
+            
+        Returns:
+            Lecciones aprendidas y ajustes aplicados
+        """
+        if not self.current_book:
+            raise ValueError("No hay libro en memoria")
+        
+        logger.info(f"Procesando feedback: {feedback[:50]}...")
+        
+        # Paso 8: Adapter - Aprender
+        adaptation_result = self.adapter.learn(
+            feedback=feedback,
+            current_book=self.current_book
+        )
+        
+        # Actualizar historial de aprendizaje
+        self.current_book.learning_history.extend(adaptation_result.learning_history)
+        
+        # Guardar
+        self.storage.save_book(self.current_book)
+        
+        return {
+            "lessons_learned": adaptation_result.lessons_learned,
+            "preferences_updated": dict(adaptation_result.preferences_updated),
+            "confidence_level": adaptation_result.confidence_level,
+            "changes_applied": adaptation_result.next_generation_changes
+        }
+    
+    # ====================================================================
+    # UTILIDADES
+    # ====================================================================
+    
+    def load_book(self, author_id: str, book_title: str) -> bool:
+        """Carga un libro existente"""
+        logger.info(f"Cargando libro: {book_title}")
+        self.current_book = self.storage.load_book(author_id, book_title)
+        return self.current_book is not None
+    
+    def save_current_book(self) -> bool:
+        """Guarda el libro actual"""
+        if not self.current_book:
+            return False
+        self.current_book.metadata.last_modified = datetime.now()
+        self.storage.save_book(self.current_book)
+        logger.info("Libro guardado")
+        return True
+    
+    def get_book_progress(self) -> Dict[str, Any]:
+        """Obtiene el progreso del libro actual"""
+        if not self.current_book:
+            return {"error": "No hay libro en memoria"}
+        
+        total_chapters = len(self.current_book.chapters)
+        chapters_written = self.current_book.chapters_written
+        progress_percentage = (chapters_written / total_chapters * 100) if total_chapters > 0 else 0
+        
+        return {
+            "title": self.current_book.metadata.title,
+            "book_type": self.current_book.metadata.book_type,
+            "total_chapters": total_chapters,
+            "chapters_written": chapters_written,
+            "progress_percentage": progress_percentage,
+            "total_words": sum(ch.estimated_words for ch in self.current_book.chapters),
+            "created_at": self.current_book.metadata.created_at.isoformat(),
+            "last_modified": self.current_book.metadata.last_modified.isoformat()
+        }
+    
+    def export_book(self, format: str = "md") -> str:
+        """Exporta el libro en un formato específico"""
+        if not self.current_book:
+            raise ValueError("No hay libro en memoria")
+        
+        logger.info(f"Exportando libro a {format}...")
+        
+        if format == "md":
+            return self._export_markdown()
+        elif format == "txt":
+            return self._export_text()
+        else:
+            raise ValueError(f"Formato no soportado: {format}")
+    
+    def _export_markdown(self) -> str:
+        """Exporta a Markdown"""
+        lines = []
+        lines.append(f"# {self.current_book.metadata.title}\n")
+        lines.append(f"**Autor:** {self.author_name}\n")
+        lines.append(f"**Tipo:** {self.current_book.metadata.book_type}\n\n")
+        
+        for chapter in self.current_book.chapters:
+            lines.append(f"## Capítulo {chapter.number}: {chapter.title}\n")
+            if chapter.content:
+                lines.append(chapter.content)
+            lines.append("\n\n")
+        
+        return "".join(lines)
+    
+    def _export_text(self) -> str:
+        """Exporta a texto plano"""
+        lines = []
+        lines.append(f"{self.current_book.metadata.title.upper()}\n")
+        lines.append(f"Autor: {self.author_name}\n\n")
+        
+        for chapter in self.current_book.chapters:
+            lines.append(f"\nCAPÍTULO {chapter.number}: {chapter.title}\n")
+            lines.append("=" * 60 + "\n")
+            if chapter.content:
+                lines.append(chapter.content)
+            lines.append("\n")
+        
+        return "".join(lines)
+ 
+# ========================================================================
+# FUNCIONES DE CONVENIENCIA
+# ========================================================================
+ 
+def create_new_system(author_name: str = "Ana Sabino", author_id: str = "2026-0056") -> BookAgentSystem:
+    """Factory function para crear un nuevo sistema"""
+    return BookAgentSystem(author_name=author_name, author_id=author_id)
+ 
